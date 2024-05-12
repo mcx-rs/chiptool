@@ -256,6 +256,7 @@ pub mod delete_enums_used_in;
 pub mod delete_fieldsets;
 //pub mod find_duplicate_enums;
 //pub mod find_duplicate_fieldsets;
+pub mod delete_num_suffix;
 pub mod expand_extends;
 pub mod make_block;
 pub mod make_field_array;

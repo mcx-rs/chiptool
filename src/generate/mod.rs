@@ -1,5 +1,5 @@
 mod block;
-mod device;
+pub mod device;
 mod enumm;
 mod fieldset;
 

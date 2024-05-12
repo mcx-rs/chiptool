@@ -1,6 +1,10 @@
-use log::*;
 use std::collections::{HashMap, HashSet};
-use svd_parser::svd;
+use std::fs::File;
+use std::io::Read;
+
+use anyhow::{Context, Result};
+use log::*;
+use svd_parser::{svd, ValidateLevel};
 
 use crate::util;
 use crate::{ir::*, transform};
@@ -401,6 +405,20 @@ pub fn convert_svd(svd: &svd::Device) -> anyhow::Result<IR> {
     transform::Sanitize {}.run(&mut ir).unwrap();
 
     Ok(ir)
+}
+
+pub fn load_svd(path: &str) -> Result<svd_parser::svd::Device> {
+    let xml = &mut String::new();
+    File::open(path)
+        .context("Cannot open the SVD file")?
+        .read_to_string(xml)
+        .context("Cannot read the SVD file")?;
+
+    let config = svd_parser::Config::default()
+        .expand_properties(true)
+        .validate_level(ValidateLevel::Disabled);
+    let device = svd_parser::parse_with_config(xml, &config)?;
+    Ok(device)
 }
 
 /// Create a map of all enums by name.

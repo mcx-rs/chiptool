@@ -7,10 +7,8 @@ use log::*;
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
-use std::io::Read;
 use std::path::PathBuf;
 use std::{fs::File, io::stdout};
-use svd_parser::ValidateLevel;
 
 use chiptool::ir::IR;
 
@@ -140,20 +138,6 @@ fn main() -> Result<()> {
     }
 }
 
-fn load_svd(path: &str) -> Result<svd_parser::svd::Device> {
-    let xml = &mut String::new();
-    File::open(path)
-        .context("Cannot open the SVD file")?
-        .read_to_string(xml)
-        .context("Cannot read the SVD file")?;
-
-    let config = svd_parser::Config::default()
-        .expand_properties(true)
-        .validate_level(ValidateLevel::Disabled);
-    let device = svd_parser::parse_with_config(xml, &config)?;
-    Ok(device)
-}
-
 fn load_config(path: &str) -> Result<Config> {
     let config = fs::read(path).context("Cannot read the config file")?;
     serde_yaml::from_slice(&config).context("cannot deserialize config")
@@ -169,7 +153,7 @@ fn extract_peripheral(args: ExtractPeripheral) -> Result<()> {
             .collect::<Result<Config>>()?
     };
 
-    let svd = load_svd(&args.svd)?;
+    let svd = svd2ir::load_svd(&args.svd)?;
     let mut ir = IR::new();
 
     let peri = args.peripheral;
@@ -230,7 +214,7 @@ fn extract_peripheral(args: ExtractPeripheral) -> Result<()> {
 fn extract_all(args: ExtractAll) -> Result<()> {
     std::fs::create_dir_all(&args.output)?;
 
-    let svd = load_svd(&args.svd)?;
+    let svd = svd2ir::load_svd(&args.svd)?;
 
     for p in &svd.peripherals {
         if p.derived_from.is_some() {
@@ -264,7 +248,7 @@ fn gen(args: Generate) -> Result<()> {
             .collect::<Result<Config>>()?
     };
 
-    let svd = load_svd(&args.svd)?;
+    let svd = svd2ir::load_svd(&args.svd)?;
     let mut ir = svd2ir::convert_svd(&svd)?;
 
     // Fix weird newline spam in descriptions.
@@ -396,6 +380,10 @@ fn gen_block(args: GenBlock) -> Result<()> {
 
     // Ensure consistent sort order in the YAML.
     chiptool::transform::sort::Sort {}.run(&mut ir).unwrap();
+
+    chiptool::transform::delete_num_suffix::DeleteNumSuffix {}
+        .run(&mut ir)
+        .unwrap();
 
     let generate_opts = generate::Options {
         common_module: generate::CommonModule::Builtin,
